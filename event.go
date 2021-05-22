@@ -4,6 +4,7 @@ import "sync"
 
 type Event struct {
 	isSet     bool
+	isWaiting bool
 	waitGroup sync.WaitGroup
 	lock      sync.RWMutex
 }
@@ -12,7 +13,7 @@ type Event struct {
 func (e *Event) Set() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	if !e.isSet {
+	if !e.isSet && !e.isWaiting {
 		e.isSet = true
 		e.waitGroup.Add(1)
 	}
@@ -37,5 +38,11 @@ func (e *Event) Clear() {
 
 // Wait blocks until Clear() called
 func (e *Event) Wait() {
+	e.lock.Lock()
+	e.isWaiting = true
+	e.lock.Unlock()
 	e.waitGroup.Wait()
+	e.lock.Lock()
+	e.isWaiting = false
+	e.lock.Unlock()
 }

@@ -14,36 +14,16 @@ import (
 
 func main() {
 	e := event.Event()
-	for i := 0; i < 3; i++ {
-		go func() {
-			e.Set()
-		}()
-	}
+    go func() {
+        e.Set()
+    }()
 
-	time.Sleep(time.Second)
-	c := make(chan int)
-	for i := 0; i < 3; i++ {
-		go func(i int) {
-			e.Wait()
-			c <- i
-		}(i)
-	}
+    go func(i int) {
+        e.Wait()
+    }(i)
 
-	time.Sleep(time.Second)
-	for i := 0; i < 3; i++ {
-		go func() {
-			e.Clear()
-		}()
-	}
-
-	time.Sleep(time.Second)
-	for i := 0; i < 3; i++ {
-		select {
-		case <-time.After(time.Second):
-			panic("Fail")
-		case v := <-c:
-			fmt.Println(v)
-		}
-	}
+    go func() {
+        e.Clear()
+    }()
 }
 ```

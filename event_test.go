@@ -1,7 +1,6 @@
 package event
 
 import (
-	"sync"
 	"testing"
 	"time"
 )
@@ -13,48 +12,44 @@ func TestEvent(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		w := &sync.WaitGroup{}
-		for i := 0; i < 3; i++ {
-			w.Add(1)
-			go func() {
-				e.Set()
-				w.Done()
-			}()
-		}
-
-		w.Wait()
+		e.Set()
 		if !e.IsSet() {
 			panic("Fail")
 		}
-
 		c := make(chan struct{})
-		for i := 0; i < 3; i++ {
-			go func() {
-				e.Wait()
-				c <- struct{}{}
-			}()
-		}
-		time.Sleep(time.Second)
-		if len(c) != 0 {
+		go func() {
+			e.Wait()
+			c <- struct{}{}
+		}()
+		select {
+		case <-c:
 			panic("Fail")
+		case <-time.After(time.Second):
 		}
-		for i := 0; i < 3; i++ {
-			w.Add(1)
-			go func() {
-				e.Clear()
-				w.Done()
-			}()
-		}
-		w.Wait()
+		e.Clear()
 		if e.IsSet() {
 			panic("Fail")
 		}
-		for i := 0; i < 3; i++ {
-			select {
-			case <-time.After(time.Second):
-				panic("Fail")
-			case <-c:
-			}
+		select {
+		case <-c:
+		case <-time.After(time.Second):
+			panic("Fail")
 		}
 	}
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			e.Set()
+		}
+	}()
+	go func() {
+		for i := 0; i < 100; i++ {
+			e.Clear()
+		}
+	}()
+	go func() {
+		for i := 0; i < 100; i++ {
+			e.Wait()
+		}
+	}()
 }
