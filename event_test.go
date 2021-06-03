@@ -1,6 +1,8 @@
 package event
 
 import (
+	"math/rand"
+	"sync"
 	"testing"
 	"time"
 )
@@ -37,19 +39,34 @@ func TestEvent(t *testing.T) {
 		}
 	}
 
-	go func() {
-		for i := 0; i < 100; i++ {
+	count := 30
+	w := sync.WaitGroup{}
+	w.Add(count)
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < count; i++ {
+		go func() {
+			time.Sleep(time.Duration(rand.Intn(1000000)))
 			e.Set()
-		}
-	}()
-	go func() {
-		for i := 0; i < 100; i++ {
+		}()
+	}
+	for i := 0; i < count; i++ {
+		go func() {
+			time.Sleep(time.Duration(rand.Intn(1000000)))
 			e.Clear()
-		}
-	}()
-	go func() {
-		for i := 0; i < 100; i++ {
+		}()
+	}
+	for i := 0; i < count; i++ {
+		go func() {
+			time.Sleep(time.Duration(rand.Intn(1000000)))
 			e.Wait()
-		}
-	}()
+			w.Done()
+		}()
+	}
+	w.Wait()
+	if e.IsSet() {
+		panic("Fail")
+	}
+	if e.waitCount != 0 {
+		panic("Fail")
+	}
 }
