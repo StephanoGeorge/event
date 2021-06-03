@@ -24,7 +24,6 @@ func (e *event) Set() {
 }
 
 func (e *event) IsSet() bool {
-	// Use Mutex to make read operation memory synchronization
 	return atomic.LoadInt32(&e.isSet) != 0
 }
 
