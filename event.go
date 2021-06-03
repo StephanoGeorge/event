@@ -1,48 +1,44 @@
 package event
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
-type Event struct {
-	isSet     bool
-	isWaiting bool
+type event struct {
+	isSet     int32
+	waitCount int32
 	waitGroup sync.WaitGroup
-	lock      sync.RWMutex
+}
+
+func New() *event {
+	return &event{}
 }
 
 // Set makes Wait() block
-func (e *Event) Set() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	if !e.isSet && !e.isWaiting {
-		e.isSet = true
+func (e *event) Set() {
+	if atomic.LoadInt32(&e.isSet) == 0 && atomic.LoadInt32(&e.waitCount) == 0 {
+		atomic.StoreInt32(&e.isSet, 1)
 		e.waitGroup.Add(1)
 	}
 }
 
-func (e *Event) IsSet() bool {
+func (e *event) IsSet() bool {
 	// Use Mutex to make read operation memory synchronization
-	e.lock.RLock()
-	defer e.lock.RUnlock()
-	return e.isSet
+	return atomic.LoadInt32(&e.isSet) != 0
 }
 
 // Clear makes Wait() not block
-func (e *Event) Clear() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	if e.isSet {
-		e.isSet = false
+func (e *event) Clear() {
+	if atomic.LoadInt32(&e.isSet) != 0 {
+		atomic.StoreInt32(&e.isSet, 0)
 		e.waitGroup.Done()
 	}
 }
 
 // Wait blocks until Clear() called
-func (e *Event) Wait() {
-	e.lock.Lock()
-	e.isWaiting = true
-	e.lock.Unlock()
+func (e *event) Wait() {
+	atomic.AddInt32(&e.waitCount, 1)
 	e.waitGroup.Wait()
-	e.lock.Lock()
-	e.isWaiting = false
-	e.lock.Unlock()
+	atomic.AddInt32(&e.waitCount, -1)
 }

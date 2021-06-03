@@ -6,7 +6,7 @@ import (
 )
 
 func TestEvent(t *testing.T) {
-	e := &Event{}
+	e := New()
 	if e.IsSet() {
 		panic("Fail")
 	}
