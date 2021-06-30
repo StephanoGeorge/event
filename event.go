@@ -5,30 +5,30 @@ import (
 	"sync/atomic"
 )
 
-type event struct {
+type Event struct {
 	isSet     int32
 	waitCount int32
 	waitGroup sync.WaitGroup
 }
 
-func New() *event {
-	return &event{}
+func New() *Event {
+	return &Event{}
 }
 
 // Set makes Wait() block
-func (e *event) Set() {
+func (e *Event) Set() {
 	if atomic.LoadInt32(&e.isSet) == 0 && atomic.LoadInt32(&e.waitCount) == 0 {
 		atomic.StoreInt32(&e.isSet, 1)
 		e.waitGroup.Add(1)
 	}
 }
 
-func (e *event) IsSet() bool {
+func (e *Event) IsSet() bool {
 	return atomic.LoadInt32(&e.isSet) != 0
 }
 
 // Clear makes Wait() not block
-func (e *event) Clear() {
+func (e *Event) Clear() {
 	if atomic.LoadInt32(&e.isSet) != 0 {
 		atomic.StoreInt32(&e.isSet, 0)
 		e.waitGroup.Done()
@@ -36,7 +36,7 @@ func (e *event) Clear() {
 }
 
 // Wait blocks until Clear() called
-func (e *event) Wait() {
+func (e *Event) Wait() {
 	atomic.AddInt32(&e.waitCount, 1)
 	e.waitGroup.Wait()
 	atomic.AddInt32(&e.waitCount, -1)
