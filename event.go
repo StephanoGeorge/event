@@ -7,7 +7,7 @@ import (
 type Event struct {
 	waitGroup sync.WaitGroup
 	isSet     bool
-	waitCount int
+	waitCount sync.WaitGroup
 	WaitChan  chan struct{}
 	lock      sync.RWMutex
 }
@@ -24,7 +24,8 @@ func New(withChan ...bool) *Event {
 // Set makes Wait() block
 func (e *Event) Set() {
 	e.lock.Lock()
-	if !e.isSet && e.waitCount == 0 {
+	if !e.isSet {
+		e.waitCount.Wait()
 		e.isSet = true
 		e.waitGroup.Add(1)
 	}
@@ -50,13 +51,9 @@ func (e *Event) Clear() {
 
 // Wait blocks until Clear() called
 func (e *Event) Wait() {
-	e.lock.Lock()
-	e.waitCount++
-	e.lock.Unlock()
+	e.waitCount.Add(1)
 	e.waitGroup.Wait()
-	e.lock.Lock()
-	e.waitCount--
-	e.lock.Unlock()
+	e.waitCount.Done()
 }
 
 func (e *Event) handleWaitChan() {
