@@ -8,7 +8,7 @@ import (
 )
 
 func TestEvent(t *testing.T) {
-	e := New()
+	e := New(true)
 	if e.IsSet() {
 		panic("Fail")
 	}
@@ -34,6 +34,11 @@ func TestEvent(t *testing.T) {
 		}
 		select {
 		case <-c:
+		case <-time.After(time.Second):
+			panic("Fail")
+		}
+		select {
+		case <-e.WaitChan:
 		case <-time.After(time.Second):
 			panic("Fail")
 		}

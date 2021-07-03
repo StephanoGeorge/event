@@ -2,42 +2,66 @@ package event
 
 import (
 	"sync"
-	"sync/atomic"
 )
 
 type Event struct {
-	isSet     int32
-	waitCount int32
 	waitGroup sync.WaitGroup
+	isSet     bool
+	waitCount int
+	WaitChan  chan struct{}
+	lock      sync.RWMutex
 }
 
-func New() *Event {
-	return &Event{}
+func New(withChan ...bool) *Event {
+	e := &Event{}
+	if len(withChan) > 0 && withChan[0] {
+		e.WaitChan = make(chan struct{})
+		go e.handleWaitChan()
+	}
+	return e
 }
 
 // Set makes Wait() block
 func (e *Event) Set() {
-	if atomic.LoadInt32(&e.isSet) == 0 && atomic.LoadInt32(&e.waitCount) == 0 {
-		atomic.StoreInt32(&e.isSet, 1)
+	e.lock.Lock()
+	if !e.isSet && e.waitCount == 0 {
+		e.isSet = true
 		e.waitGroup.Add(1)
 	}
+	e.lock.Unlock()
 }
 
 func (e *Event) IsSet() bool {
-	return atomic.LoadInt32(&e.isSet) != 0
+	e.lock.RLock()
+	isSet := e.isSet
+	e.lock.RUnlock()
+	return isSet
 }
 
 // Clear makes Wait() not block
 func (e *Event) Clear() {
-	if atomic.LoadInt32(&e.isSet) != 0 {
-		atomic.StoreInt32(&e.isSet, 0)
+	e.lock.Lock()
+	if e.isSet {
+		e.isSet = false
 		e.waitGroup.Done()
 	}
+	e.lock.Unlock()
 }
 
 // Wait blocks until Clear() called
 func (e *Event) Wait() {
-	atomic.AddInt32(&e.waitCount, 1)
+	e.lock.Lock()
+	e.waitCount++
+	e.lock.Unlock()
 	e.waitGroup.Wait()
-	atomic.AddInt32(&e.waitCount, -1)
+	e.lock.Lock()
+	e.waitCount--
+	e.lock.Unlock()
+}
+
+func (e *Event) handleWaitChan() {
+	for {
+		e.Wait()
+		e.WaitChan <- struct{}{}
+	}
 }

@@ -1,29 +1,50 @@
 # Event in Go
 
-Implementation of Python threading.Event in Go
+Implementation of Python threading.Event in Go, add channel support
 
 # Example
 
 ```go
 import (
-	"fmt"
-	"time"
-
 	"github.com/StephanoGeorge/event"
 )
+```
 
-func main() {
-	e := event.Event()
-    go func() {
-        e.Set()
-    }()
+```go
+e := event.Event()
+go func() {
+    e.Set()
+}()
 
-    go func(i int) {
-        e.Wait()
-    }(i)
+go func() {
+    e.Wait()
+}()
 
-    go func() {
-        e.Clear()
-    }()
-}
+go func() {
+    e.Clear()
+}()
+```
+
+With channel
+
+```go
+e := event.Event(true)
+go func() {
+    e.Set()
+}()
+
+go func() {
+    select {
+    case <-e.WaitChan:
+        if !e.IsSet() {
+            fmt.Println("Cleared")
+        }
+    case <-time.After(time.Minute):
+        fmt.Println("Timed out")
+    }
+}()
+
+go func() {
+    e.Clear()
+}()
 ```
