@@ -5,15 +5,16 @@ import (
 )
 
 type Event struct {
-	waitGroup sync.WaitGroup
-	isSet     bool
-	waitCount sync.WaitGroup
 	WaitChan  chan struct{}
+	waitGroup sync.WaitGroup
+	waitCount sync.WaitGroup
+	isSet     bool
 	lock      sync.RWMutex
 }
 
 func New(withChan ...bool) *Event {
 	e := &Event{}
+	e.Set()
 	if len(withChan) > 0 && withChan[0] {
 		e.WaitChan = make(chan struct{})
 		go e.handleWaitChan()

@@ -9,7 +9,7 @@ import (
 
 func TestEvent(t *testing.T) {
 	e := New(true)
-	if e.IsSet() {
+	if !e.IsSet() {
 		panic("Fail")
 	}
 
@@ -69,9 +69,6 @@ func TestEvent(t *testing.T) {
 	}
 	w.Wait()
 	if e.IsSet() {
-		panic("Fail")
-	}
-	if e.waitCount != 0 {
 		panic("Fail")
 	}
 }
