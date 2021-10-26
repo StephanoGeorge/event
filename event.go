@@ -25,6 +25,7 @@ func New(withChan ...bool) *Event {
 func (e *Event) Set() {
 	e.lock.Lock()
 	if !e.isSet {
+		// wait for all Event waiter to finish, because number of waitGroup waiter must be 0 when Adding
 		e.waitCount.Wait()
 		e.isSet = true
 		e.waitGroup.Add(1)
@@ -51,7 +52,10 @@ func (e *Event) Clear() {
 
 // Wait blocks until Clear() called
 func (e *Event) Wait() {
+	// avoid race with Set()
+	e.lock.RLock()
 	e.waitCount.Add(1)
+	e.lock.RUnlock()
 	e.waitGroup.Wait()
 	e.waitCount.Done()
 }
