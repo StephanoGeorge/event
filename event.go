@@ -5,11 +5,13 @@ import (
 )
 
 type Event struct {
-	WaitChan  chan struct{}
-	waitGroup sync.WaitGroup
-	waitCount sync.WaitGroup
-	isSet     bool
-	lock      sync.RWMutex
+	WaitChan     chan struct{}
+	waitGroup    sync.WaitGroup
+	waitCount    sync.WaitGroup
+	isSet        bool
+	isClosed     bool
+	lock         sync.RWMutex
+	isClosedLock sync.RWMutex
 }
 
 func New(withChan ...bool) *Event {
@@ -34,13 +36,6 @@ func (e *Event) Set() {
 	e.lock.Unlock()
 }
 
-func (e *Event) IsSet() bool {
-	e.lock.RLock()
-	isSet := e.isSet
-	e.lock.RUnlock()
-	return isSet
-}
-
 // Clear makes Wait() not block
 func (e *Event) Clear() {
 	e.lock.Lock()
@@ -53,7 +48,7 @@ func (e *Event) Clear() {
 
 // Wait blocks until Clear() called
 func (e *Event) Wait() {
-	// avoid race with Set()
+	// avoid racing with Set()
 	e.lock.RLock()
 	e.waitCount.Add(1)
 	e.lock.RUnlock()
@@ -61,9 +56,33 @@ func (e *Event) Wait() {
 	e.waitCount.Done()
 }
 
+func (e *Event) IsSet() bool {
+	e.lock.RLock()
+	isSet := e.isSet
+	e.lock.RUnlock()
+	return isSet
+}
+
+func (e *Event) Close() {
+	e.Clear()
+	e.isClosedLock.Lock()
+	e.isClosed = true
+	e.isClosedLock.Unlock()
+	if e.WaitChan != nil {
+		<-e.WaitChan
+	}
+}
+
 func (e *Event) handleWaitChan() {
 	for {
 		e.Wait()
+		// a struct must have be sent before breaking
 		e.WaitChan <- struct{}{}
+		e.isClosedLock.RLock()
+		isClosed := e.isClosed
+		e.isClosedLock.RUnlock()
+		if isClosed {
+			break
+		}
 	}
 }
